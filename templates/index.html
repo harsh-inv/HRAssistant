@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF ASSISTANT</title>
+    <title>HR ASSISTANT</title>
     <style>
         * {
             margin: 0;
@@ -704,15 +704,15 @@
             <span></span>
         </button>
         <img src="/static/InChat-white.png" alt="InChat Logo" class="header-logo" onerror="this.style.display='none'">
-        <h1>PDF ASSISTANT</h1>
+        <h1>HR ASSISTANT</h1>
     </div>
 
     <div class="container">
         <div class="sidebar" id="sidebar">
             <div class="sidebar-section">
-                <h3>PDF Collection</h3>
+                <h3>Document Collection</h3>
                 <div class="info-box">
-                    <p id="kbStatus">No PDFs found. Upload PDF files to get started.</p>
+                    <p id="kbStatus">No Documents found. Upload files to get started.</p>
                 </div>
             </div>
 
@@ -722,10 +722,10 @@
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="upload-icon">
                         <path fill="#7f8c8d" d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
                     </svg>
-                    <p>Click to upload PDF files</p>
-                    <span>PDF format only (multiple files allowed)</span>
-                </div>
-                <input type="file" id="fileInput" accept=".pdf,application/pdf" multiple style="display: none;">
+                    <p>Click to upload documents</p>
+                    <span>PDF, DOCX, TXT formats</span>
+                    </div>
+                    <input type="file" id="fileInput" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" multiple style="display: none;">
                 <div class="file-list" id="fileList"></div>
             </div>
 
@@ -750,8 +750,8 @@
                     <div class="welcome-avatar">
                         <img src="/static/HR-chat-icon.png" alt="Assistant" onerror="this.innerHTML='📄'">
                     </div>
-                    <h2>Hello! I'm your PDF Assistant.</h2>
-                    <p>I can help you analyze and understand PDF documents. Upload one or more PDF files to get started, and I'm ready to answer your questions.</p>
+                    <h2>Hello! I'm your HR Assistant.</h2>
+                    <p>I can help you analyze and understand HR plolicies.I'm ready to answer your questions.</p>
                 </div>
             </div>
             <div class="input-area">
@@ -1547,7 +1547,7 @@
         if (!confirm('Are you sure you want to clear the chat and remove all PDFs?')) return;
 
         try {
-            await fetch('/clear', {
+            const response = await fetch('/clear', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1555,31 +1555,54 @@
                 body: JSON.stringify({ session_id: sessionId })
             });
 
-            uploadedFiles = [];
-            chatActive = false;
-            document.getElementById('fileList').innerHTML = '';
-            document.getElementById('kbStatus').textContent = 'No PDFs found. Upload PDF files to get started.';
-
-            document.getElementById('chatMessages').innerHTML = `
-                <div class="welcome-message">
-                    <div class="welcome-avatar">
-                        <img src="static/HR-chat-icon.jpg" alt="Assistant" onerror="this.innerHTML='📄'">
-                    </div>
-                    <h2>Hello! I'm your PDF Assistant.</h2>
-                    <p>I can help you analyze and understand PDF documents. Upload one or more PDF files to get started.</p>
-                </div>
-            `;
-
-            sessionEnded = false;
-            waitingForMoreQuestionsResponse = false;
-            waitingForUploadResponse = false;
+            const data = await response.json();
             
-            stopInactivityTimer();
+            if (data.success) {
+                // Clear uploaded files
+                uploadedFiles = [];
+                document.getElementById('fileList').innerHTML = '';
+                
+                // Update status based on preloaded documents
+                if (data.chat_active) {
+                    document.getElementById('kbStatus').textContent = 'Preloaded documents available. Upload additional files if needed.';
+                } else {
+                    document.getElementById('kbStatus').textContent = 'No documents found. Upload files to get started.';
+                    chatActive = false;
+                }
 
-            showToast('Chat cleared', 'success');
+                // Clear chat messages and show welcome message
+                document.getElementById('chatMessages').innerHTML = `
+                    <div class="welcome-message">
+                        <div class="welcome-avatar">
+                            <img src="/static/HR-chat-icon.png" alt="Assistant" onerror="this.innerHTML='📄'">
+                        </div>
+                        <h2>Hello! I'm your HR Assistant.</h2>
+                        <p>I can help you analyze and understand HR policies. I'm ready to answer your questions.</p>
+                    </div>
+                `;
+
+                // Reset session state
+                sessionEnded = false;
+                waitingForMoreQuestionsResponse = false;
+                waitingForUploadResponse = false;
+                userHasFeedback = false;
+                chatActive = data.chat_active;
+                
+                // Reset feedback button
+                const exportBtn = document.getElementById('exportFeedbackBtn');
+                exportBtn.disabled = true;
+                exportBtn.style.display = 'none';
+                document.getElementById('feedbackStatus').textContent = 'No feedback yet';
+                
+                stopInactivityTimer();
+
+                showToast('Chat cleared successfully', 'success');
+            } else {
+                showToast('Failed to clear chat: ' + (data.error || 'Unknown error'), 'error');
+            }
         } catch (error) {
             console.error('Clear error:', error);
-            showToast('Clear failed', 'error');
+            showToast('Failed to clear chat', 'error');
         }
     }
 
@@ -1619,78 +1642,78 @@
     }
 
     function initializeApp() {
-        console.log('Initializing PDF Assistant...');
-        
-        const fileInput = document.getElementById('fileInput');
-        if (fileInput) {
-            fileInput.addEventListener('change', async function(e) {
-                const files = e.target.files;
-                
-                if (files.length === 0) {
-                    return;
-                }
-
-                const formData = new FormData();
-                formData.append('session_id', sessionId);
-                
-                let pdfCount = 0;
-                for (let i = 0; i < files.length; i++) {
-                    if (files[i].name.toLowerCase().endsWith('.pdf')) {
-                        formData.append('files', files[i]);
-                        pdfCount++;
+            console.log('Initializing HR Assistant...');
+            
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                fileInput.addEventListener('change', async function(e) {
+                    const files = e.target.files;
+                    
+                    if (files.length === 0) {
+                        return;
                     }
-                }
 
-                if (pdfCount === 0) {
-                    showToast('Please select PDF files only', 'error');
-                    e.target.value = '';
-                    return;
-                }
-
-                try {
-                    showToast('Processing PDFs...', 'success');
-
-                    const response = await fetch('/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        uploadedFiles = data.files;
-                        chatActive = data.chat_active;
-                        updateFileList(data.files.map(f => f.original_name));
-                        
-                        document.getElementById('kbStatus').textContent = `${data.files.length} PDF${data.files.length !== 1 ? 's' : ''} uploaded and processed.`;
-                        
-                        showToast('PDFs processed successfully!', 'success');
-                        
-                        if (data.welcome_message) {
-                            addMessage(data.welcome_message, false, false);
+                    const formData = new FormData();
+                    formData.append('session_id', sessionId);
+                    
+                    let fileCount = 0;
+                    for (let i = 0; i < files.length; i++) {
+                        const filename = files[i].name.toLowerCase();
+                        if (filename.endsWith('.pdf') || filename.endsWith('.docx') || filename.endsWith('.txt')) {
+                            formData.append('files', files[i]);
+                            fileCount++;
                         }
-                        
-                        stopInactivityTimer();
-                        startInactivityTimer();
-                        
-                    } else {
-                        showToast(`Upload failed: ${data.error}`, 'error');
                     }
-                } catch (error) {
-                    console.error('Upload error:', error);
-                    showToast('Upload error', 'error');
-                }
 
-                e.target.value = '';
-            });
+                    if (fileCount === 0) {
+                        showToast('Please select PDF, DOCX, or TXT files only', 'error');
+                        e.target.value = '';
+                        return;
+                    }
+
+                    try {
+                        showToast('Processing documents...', 'success');
+
+                        const response = await fetch('/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            uploadedFiles = data.files;
+                            chatActive = data.chat_active;
+                            updateFileList(data.files.map(f => f.original_name));
+                            
+                            document.getElementById('kbStatus').textContent = `${data.files.length} document${data.files.length !== 1 ? 's' : ''} uploaded and processed.`;
+                            
+                            showToast('Documents processed successfully!', 'success');
+                            
+                            if (data.welcome_message) {
+                                addMessage(data.welcome_message, false, false);
+                            }
+                            
+                            stopInactivityTimer();
+                            startInactivityTimer();
+                            
+                        } else {
+                            showToast(`Upload failed: ${data.error}`, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Upload error:', error);
+                        showToast('Upload error', 'error');
+                    }
+
+                    e.target.value = '';
+                });
+            }
+
+            initTTS();
+            initSession();
+            
+            console.log('HR Assistant initialized');
         }
-
-        initTTS();
-        initSession();
-        
-        console.log('PDF Assistant initialized');
-    }
-
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initializeApp);
     } else {
