@@ -1017,10 +1017,6 @@ def get_conversation_chain(vectorstore):
     )
     return conversation_chain
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
 @app.route('/init_session', methods=['POST'])
 def init_session():
     data = request.json
@@ -1538,3 +1534,4 @@ def export_feedback():
 if __name__ == '__main__':
 
     app.run(debug=True, host='0.0.0.0', port=5000)
+
